@@ -1,4 +1,4 @@
-import { ConnectWallet } from "@thirdweb-dev/react";
+import { ConnectWallet } from "thirdweb/react";
 import Image from "next/image";
 import styles from "../styles/Header.module.css";
 import Link from "next/link";

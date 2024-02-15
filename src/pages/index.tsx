@@ -1,25 +1,55 @@
 import {
-  ConnectWallet,
+  //ConnectWallet,
   MediaRenderer,
-  useContract,
+  //useContract,
   useContractMetadata,
   useUser,
 } from "@thirdweb-dev/react";
+import {
+  ConnectWallet
+  
+} from "thirdweb/react"
+import { createThirdwebClient, getContract, defineChain } from "thirdweb";
 import { ThirdwebSDK } from "@thirdweb-dev/sdk";
 import { useRouter } from "next/router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { getUser } from "../../auth.config";
 import { contractAddress } from "../../const/yourDetails";
 import { Header } from "../components/Header";
 import styles from "../styles/Home.module.css";
 import checkBalance from "../util/checkBalance";
+import { getContractMetadata } from "thirdweb/extensions/common"
+
+const client = createThirdwebClient({
+  clientId: process.env.NEXT_PUBLIC_TEMPLATE_CLIENT_ID,
+  
+});
 
 export default function Home() {
   const { isLoggedIn, isLoading } = useUser();
   const router = useRouter();
-  const { contract } = useContract(contractAddress);
-  const { data: contractMetadata, isLoading: contractLoading } =
-    useContractMetadata(contract);
+  const chain = defineChain(167008);
+  const contract = getContract({
+    client: client,
+    address: contractAddress,
+    chain: chain,
+    // optional ABI
+    //abi: [...],
+   });
+   const [contractMetadata, setContractMetadata] = useState(null);
+   const [contractLoading, setContractLoading] = useState(true);
+
+
+   useEffect(() => {
+
+    async function getContractData() {
+      setContractMetadata(await getContractMetadata({ contract }));
+      if(contractMetadata)
+        setContractLoading(false);
+    }
+    if(contract && contractLoading && !contractMetadata)
+      getContractData();
+  }, [contract, contractMetadata]);
 
   useEffect(() => {
     if (!isLoading && !isLoggedIn) {
@@ -67,7 +97,7 @@ export default function Home() {
         )}
         {contractLoading && <p>Loading...</p>}
 
-        <ConnectWallet theme="dark" className={styles.connect} />
+        <ConnectWallet theme="dark" />
       </div>
     </div>
   );

@@ -1,33 +1,71 @@
 import {
-  ConnectWallet,
-  MediaRenderer,
-  useAddress,
-  useContract,
-  useContractMetadata,
-  useOwnedNFTs,
+  MediaRenderer
 } from "@thirdweb-dev/react";
 import { ThirdwebSDK } from "@thirdweb-dev/sdk";
 import { useRouter } from "next/router";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { getUser } from "../../auth.config";
 import { contractAddress } from "../../const/yourDetails";
 import { Header } from "../components/Header";
 import styles from "../styles/Home.module.css";
 import checkBalance from "../util/checkBalance";
+import { createThirdwebClient, defineChain, getContract  } from "thirdweb";
+import { useActiveWallet, ConnectWallet } from "thirdweb/react";
+import {getNFTs} from "thirdweb/extensions/erc721"
+import { getContractMetadata } from "thirdweb/extensions/common"
+
+const client = createThirdwebClient({
+  clientId: process.env.NEXT_PUBLIC_TEMPLATE_CLIENT_ID,
+  
+});
 
 export default function Login() {
-  const { contract } = useContract(contractAddress);
-  const { data: contractMetadata, isLoading: contractLoading } =
-    useContractMetadata(contract);
-  const address = useAddress();
-  const { data: nfts } = useOwnedNFTs(contract, address);
+  const chain = defineChain(167008);
+  const contract = getContract({
+    client: client,
+    address: contractAddress,
+    chain: chain,
+    // optional ABI
+    //abi: [...],
+   });
+  const activeWallet = useActiveWallet();
+  const address = activeWallet?.account.address;
+  const [nfts, setNFts] = useState([]);
+  //const { data: nfts } = useOwnedNFTs(contract, address);
   const router = useRouter();
 
+  const [contractMetadata, setContractMetadata] = useState(null);
+  const [contractLoading, setContractLoading] = useState(true);
+
   useEffect(() => {
-    if (nfts?.length) {
-      router.push("/");
+
+    async function getOwnedNFT() {
+      if(!contractMetadata) {
+        console.log("Getting contract metadata");
+        setContractMetadata(await getContractMetadata({ contract }));
+        setContractLoading(false);
+      }
+      const nfts = await getNFTs({
+        contract,
+        start: 0,
+        count: 10,
+        includeOwners: true,
+       });
+      setNFts(nfts.filter((nft) => nft.owner === address));
+      if (nfts?.length) {
+        router.push("/");
+      }
+      console.log(nfts);
     }
-  }, [nfts, router, address]);
+    console.log("Contract", contract);
+    console.log("Contract Metadata", contractMetadata);
+    console.log("Contract Loading", contractLoading);
+    console.log("NFTs", nfts);
+    console.log("Address", address);
+    if(contract && address)
+      getOwnedNFT();
+
+  }, [nfts, router, address, contract, contractMetadata]);
 
   return (
     <div className={styles.container}>
@@ -55,21 +93,21 @@ export default function Login() {
 
         {contractMetadata && (
           <div className={styles.nft}>
-            <MediaRenderer
-              src={contractMetadata.image}
+            {/* <MediaRenderer
+              src={contractMetadata}
               alt={contractMetadata.name}
               width="70px"
               height="70px"
-            />
+            /> */}
             <div className={styles.nftDetails}>
               <h4>{contractMetadata.name}</h4>
-              <p>{contractMetadata.description.substring(0, 100)}...</p>
+              <p>{contractMetadata.description?.substring(0, 100)}...</p>
             </div>
           </div>
         )}
         {contractLoading && <p>Loading...</p>}
 
-        <ConnectWallet theme="dark" className={styles.connect} />
+        <ConnectWallet theme="dark" />
       </div>
     </div>
   );
@@ -100,7 +138,7 @@ export async function getServerSideProps(context) {
   // Instantiate our SDK
   const sdk = ThirdwebSDK.fromPrivateKey(
     process.env.THIRDWEB_AUTH_PRIVATE_KEY,
-    "mumbai",
+    "taiko-katla-l2",
     { secretKey }
   );
 
